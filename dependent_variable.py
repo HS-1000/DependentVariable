@@ -1,0 +1,137 @@
+from collections import defaultdict, deque
+
+class DependentStates:
+	def __init__(self):
+		self._attrs = {}
+		self.dependencies = {}
+		self.unex_dependencies = {
+			"name" : None,
+			"dependencies" : set()
+		}
+		self.dependency_testing = False
+		self.validation_node = False
+		self.updated = []
+
+	def __getattr__(self, name):
+		if name in self._attrs:
+			# self.dependency_testing 이 켜져있다면 접근되는 name기록
+			if self.dependency_testing:
+				self.dependencies[self.dependency_testing].add(name)
+			elif self.validation_node:
+				if name not in self.dependencies[self.validation_node]:
+					self.unex_dependencies["name"] = self.validation_node
+					self.unex_dependencies["dependencies"].add(name)
+			return self._attrs[name].value
+		elif name in self.__dict__:
+			return self.__dict__[name]
+		else:
+			raise AttributeError(f"name '{name}' is not defined")
+	
+	def __setattr__(self, name, value):
+		if name == "_attrs":
+			super().__setattr__(name, value)
+		else:
+			if name in self._attrs:
+				if self._attrs[name].is_origin:
+					self._attrs[name].value = value
+					#TODO 업데이트 동작
+				else:
+					print("This value can only be set via 'update'")
+					return False
+			else:
+				if isinstance(value, DependentVariable):
+					self._attrs[name] = value
+				else:
+					self._attrs[name] = DependentVariable(value, is_origin=True)
+				self.dependencies[name] = set()
+
+	def update_order(self):
+		# topological sort
+		graph = defaultdict(list)
+		indegree = defaultdict(int)
+		for node, deps in self.dependencies.items():
+			for dep in deps:
+				graph[dep].append(node)
+				indegree[node] += 1
+			if node in indegree:
+				indegree[node] = 0
+		indegree_0 = deque([node for node in indegree if indegree[node] == 0])
+		order = []
+		while indegree_0:
+			current = indegree_0.popleft()
+			order.append(current)
+			for child in graph[current]:
+				indegree[child] -= 1
+				if indegree[child] == 0:
+					indegree_0.append(child)
+		# Circular dependency checking
+		if len(order) == len(indegree):
+			return order
+		else:
+			print("A circular dependency exists")
+			return False
+
+	def set_dependencies(self, name, update_func):
+		self.dependency_testing = name
+		update_func(self)
+		self.dependency_testing = False
+		if len(self.dependencies[name]):
+			self._attrs[name].is_origin = False
+		# 여기서 업데이트 실행하면서 __getattr__에서 이 업데이트 함수가
+		# 의존하는 다른 인스턴스들에 이 객체 링크
+
+	def need_update(self, name):
+		for d in self.dependencies[name]:
+			if d.before == d.value:
+				continue
+			else:
+				return True	
+		return False
+
+	def graph_update(self):
+		order = self.update_order()
+		self.updated = []
+		for o in order:
+			if self.need_update(o):
+				self.validation_node = o
+				self._attrs[o].update(self)
+				self.updated.append(o)
+				if len(self.unex_dependencies["dependencies"]):
+					# undo, reset dependencies
+					for u in self.unex_dependencies["dependencies"]:
+						self.dependencies.add(u)
+					for u in self.updated:
+						self._attrs[u].undo()
+					self.graph_update()
+					break
+		self.validation_node = False
+
+	def reset_unes_dependencies(self):
+		self.unex_dependencies = {
+			"name" : None,
+			"dependencies" : set()
+		}
+
+class DependentVariable:
+	def __init__(self, value, is_origin=False):
+		self.value = value
+		self.before = []
+		self.is_origin = is_origin
+
+	def update(self, states):
+		pass
+
+	def __setattr__(self, name, value):
+		if name == "value":
+			self.before.append(self.value)
+			self.value = value
+			if len(self.before) > 10:
+				self.before = self.before[1:]
+		else:
+			super().__setattr__(name, value)
+
+	def undo(self):
+		tmp_before = self.before[:-1]
+		self.value = self.before[-1]
+		self.before = tmp_before
+		del tmp_before
