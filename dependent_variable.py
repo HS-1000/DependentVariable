@@ -45,10 +45,6 @@ class DependentStates:
 					print("This value can only be set via 'update'")
 					return False
 			else:
-				# if isinstance(value, DependentVariable):
-				# 	self._attrs[name] = value
-				# else:
-				# 	self._attrs[name] = DependentVariable(value, is_origin=True)
 				self._attrs[name] = DependentVariable(None, is_origin=True)
 				self.dependencies[name] = set()
 				is_func = inspect.isfunction(value)
@@ -57,6 +53,16 @@ class DependentStates:
 					self.set_dependencies(name, value)
 				else:
 					self._attrs[name].value = value
+
+	def __delattr__(self, name):
+		for k in self.dependencies.keys():
+			if k == name:
+				continue
+			elif name in self.dependencies[k]:
+				print(f"{name} is dependent on another variable")
+				return False
+		del self.dependencies[name]
+		del self._attrs[name]
 
 	def update_order(self):
 		# topological sort
@@ -107,6 +113,7 @@ class DependentStates:
 	def graph_update(self):
 		order = self.update_order()
 		self.updated = []
+		self.reset_unex_dependencies()
 		for o in order:
 			if self.need_update(o):
 				self.validation_node = o
@@ -115,14 +122,14 @@ class DependentStates:
 				if len(self.unex_dependencies["dependencies"]):
 					# undo, reset dependencies
 					for u in self.unex_dependencies["dependencies"]:
-						self.dependencies.add(u)
+						self.dependencies[o].add(u)
 					for u in self.updated:
 						self._attrs[u].undo()
 					self.graph_update()
 					break
 		self.validation_node = False
 
-	def reset_unes_dependencies(self):
+	def reset_unex_dependencies(self):
 		self.unex_dependencies = {
 			"name" : None,
 			"dependencies" : set()
@@ -153,7 +160,8 @@ class DependentVariable:
 			return super().__getattr__(name)
 
 	def undo(self):
-		tmp_before = self.before[:-1]
-		self.value = self.before[-1]
-		self.before = tmp_before
-		del tmp_before
+		# tmp_before = self.before[:-1]
+		# self._value = self.before[-1]
+		# self.before = tmp_before
+		self.before, self._value = self.before[:-1], self.before[-1]
+		# del tmp_before
