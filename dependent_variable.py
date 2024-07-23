@@ -1,6 +1,12 @@
 from collections import defaultdict, deque
+import inspect
 
 class DependentStates:
+	_class_keywords = [
+		"_attrs", "dependencies", "unex_dependencies", 
+		"dependency_testing", "validation_node", "updated"
+	]
+
 	def __init__(self):
 		self._attrs = {}
 		self.dependencies = {}
@@ -28,22 +34,29 @@ class DependentStates:
 			raise AttributeError(f"name '{name}' is not defined")
 	
 	def __setattr__(self, name, value):
-		if name == "_attrs":
+		if name in self._class_keywords:
 			super().__setattr__(name, value)
 		else:
 			if name in self._attrs:
 				if self._attrs[name].is_origin:
 					self._attrs[name].value = value
-					#TODO 업데이트 동작
+					self.graph_update()
 				else:
 					print("This value can only be set via 'update'")
 					return False
 			else:
-				if isinstance(value, DependentVariable):
-					self._attrs[name] = value
-				else:
-					self._attrs[name] = DependentVariable(value, is_origin=True)
+				# if isinstance(value, DependentVariable):
+				# 	self._attrs[name] = value
+				# else:
+				# 	self._attrs[name] = DependentVariable(value, is_origin=True)
+				self._attrs[name] = DependentVariable(None, is_origin=True)
 				self.dependencies[name] = set()
+				is_func = inspect.isfunction(value)
+				if is_func:
+					self._attrs[name].update = value
+					self.set_dependencies(name, value)
+				else:
+					self._attrs[name].value = value
 
 	def update_order(self):
 		# topological sort
@@ -71,10 +84,12 @@ class DependentStates:
 			print("A circular dependency exists")
 			return False
 
-	def set_dependencies(self, name, update_func):
+	def set_dependencies(self, name, update_func, inplace=True):
 		self.dependency_testing = name
-		update_func(self)
+		r = update_func(self)
 		self.dependency_testing = False
+		if inplace:
+			self._attrs[name].value = r
 		if len(self.dependencies[name]):
 			self._attrs[name].is_origin = False
 		# 여기서 업데이트 실행하면서 __getattr__에서 이 업데이트 함수가
@@ -82,6 +97,7 @@ class DependentStates:
 
 	def need_update(self, name):
 		for d in self.dependencies[name]:
+			d = self._attrs[d]
 			if d.before == d.value:
 				continue
 			else:
@@ -94,7 +110,7 @@ class DependentStates:
 		for o in order:
 			if self.need_update(o):
 				self.validation_node = o
-				self._attrs[o].update(self)
+				self._attrs[o].value = self._attrs[o].update(self)
 				self.updated.append(o)
 				if len(self.unex_dependencies["dependencies"]):
 					# undo, reset dependencies
@@ -114,21 +130,27 @@ class DependentStates:
 
 class DependentVariable:
 	def __init__(self, value, is_origin=False):
-		self.value = value
 		self.before = []
 		self.is_origin = is_origin
+		self._value = value
 
 	def update(self, states):
 		pass
 
 	def __setattr__(self, name, value):
 		if name == "value":
-			self.before.append(self.value)
-			self.value = value
+			self.before.append(self._value)
+			self._value = value
 			if len(self.before) > 10:
 				self.before = self.before[1:]
 		else:
 			super().__setattr__(name, value)
+
+	def __getattr__(self, name):
+		if name == "value":
+			return self._value
+		else:
+			return super().__getattr__(name)
 
 	def undo(self):
 		tmp_before = self.before[:-1]
