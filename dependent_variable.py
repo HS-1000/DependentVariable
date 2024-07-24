@@ -37,8 +37,14 @@ class DependentStates:
 		if name in self._class_keywords:
 			super().__setattr__(name, value)
 		else:
+			is_func = inspect.isfunction(value)
 			if name in self._attrs:
-				if self._attrs[name].is_origin:
+				if is_func:
+					self.dependencies[name] = set()
+					self._attrs[name].update = value
+					self.set_dependencies(name, value)
+					self.graph_update()
+				elif self._attrs[name].is_origin:
 					self._attrs[name].value = value
 					self.graph_update()
 				else:
@@ -47,7 +53,6 @@ class DependentStates:
 			else:
 				self._attrs[name] = DependentVariable(None, is_origin=True)
 				self.dependencies[name] = set()
-				is_func = inspect.isfunction(value)
 				if is_func:
 					self._attrs[name].update = value
 					self.set_dependencies(name, value)
@@ -90,7 +95,7 @@ class DependentStates:
 			print("A circular dependency exists")
 			return False
 
-	def set_dependencies(self, name, update_func, inplace=True):
+	def set_dependencies(self, name, update_func, inplace=True, ):
 		self.dependency_testing = name
 		r = update_func(self)
 		self.dependency_testing = False
@@ -98,8 +103,6 @@ class DependentStates:
 			self._attrs[name].value = r
 		if len(self.dependencies[name]):
 			self._attrs[name].is_origin = False
-		# 여기서 업데이트 실행하면서 __getattr__에서 이 업데이트 함수가
-		# 의존하는 다른 인스턴스들에 이 객체 링크
 
 	def need_update(self, name):
 		for d in self.dependencies[name]:
@@ -141,7 +144,7 @@ class DependentVariable:
 		self.is_origin = is_origin
 		self._value = value
 
-	def update(self, states):
+	def update(self):
 		pass
 
 	def __setattr__(self, name, value):
@@ -160,8 +163,4 @@ class DependentVariable:
 			return super().__getattr__(name)
 
 	def undo(self):
-		# tmp_before = self.before[:-1]
-		# self._value = self.before[-1]
-		# self.before = tmp_before
 		self.before, self._value = self.before[:-1], self.before[-1]
-		# del tmp_before
