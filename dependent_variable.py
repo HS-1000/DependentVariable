@@ -138,6 +138,13 @@ class DependentStates:
 			"dependencies" : set()
 		}
 
+	def to_dict(self):
+		keys_ = self._attrs.keys()
+		val_dict = {}
+		for k in keys_:
+			val_dict[k] = self._attrs[k].value
+		return val_dict
+
 class DependentVariable:
 	def __init__(self, value, is_origin=False):
 		self.before = []
