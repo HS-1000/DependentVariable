@@ -22,9 +22,10 @@ class DependentStates:
 		if name in self._attrs:
 			# self.dependency_testing 이 켜져있다면 접근되는 name기록
 			if self.dependency_testing:
-				self.dependencies[self.dependency_testing].add(name)
+				if name != self.dependency_testing:
+					self.dependencies[self.dependency_testing].add(name)
 			elif self.validation_node:
-				if name not in self.dependencies[self.validation_node]:
+				if name not in (*self.dependencies[self.validation_node], self.validation_node):
 					self.unex_dependencies["name"] = self.validation_node
 					self.unex_dependencies["dependencies"].add(name)
 			return self._attrs[name].value

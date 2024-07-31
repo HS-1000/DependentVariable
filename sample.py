@@ -1,6 +1,3 @@
-LIB_DIR = r"C:\dependent-var"
-import sys
-sys.path.append(LIB_DIR)
 import dependent_variable as dv
 
 states = dv.DependentStates()
