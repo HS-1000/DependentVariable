@@ -59,3 +59,13 @@ print("f:", states.f)  # d
 print("Deleting values---------------------------------------------------")
 del states.c # False
 del states.f # True
+
+print("List index slice---------------------------------------------------")
+g = [i for i in range(1, 10)]
+states.g = g
+del g
+print(states.g[:5])
+
+print("To dict------------------------------------------------------------")
+print(states.to_dict())
+
