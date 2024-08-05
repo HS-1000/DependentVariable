@@ -2,6 +2,7 @@ from collections import defaultdict, deque
 import inspect
 import numpy as np
 import pandas as pd
+import traceback
 
 class DependentStates:
 	_class_keywords = [
@@ -110,10 +111,14 @@ class DependentStates:
 	def need_update(self, name):
 		for d in self.dependencies[name]:
 			d = self._attrs[d]
-			if d.before == d.value:
-				continue
+			try:
+				is_change = not (d.before[-1] == d.value)
+			except:
+				is_change = True
+			if is_change:
+				return True
 			else:
-				return True	
+				continue
 		return False
 
 	def graph_update(self):
@@ -121,18 +126,24 @@ class DependentStates:
 		self.updated = []
 		self.reset_unex_dependencies()
 		for o in order:
-			if self.need_update(o):
-				self.validation_node = o
-				self._attrs[o].value = self._attrs[o].update(self)
-				self.updated.append(o)
-				if len(self.unex_dependencies["dependencies"]):
-					# undo, reset dependencies
-					for u in self.unex_dependencies["dependencies"]:
-						self.dependencies[o].add(u)
-					for u in self.updated:
-						self._attrs[u].undo()
-					self.graph_update()
-					break
+			try:
+				if self.need_update(o):
+					self.validation_node = o
+					self._attrs[o].value = self._attrs[o].update(self)
+					self.updated.append(o)
+					if len(self.unex_dependencies["dependencies"]):
+						# undo, reset dependencies
+						for u in self.unex_dependencies["dependencies"]:
+							self.dependencies[o].add(u)
+						for u in self.updated:
+							self._attrs[u].undo()
+						self.graph_update()
+						break
+			except Exception as e:
+				traceback.print_exc()
+				print(e)
+				print("\nUpdate error value name:", o)
+				exit()
 		self.validation_node = False
 
 	def reset_unex_dependencies(self):
