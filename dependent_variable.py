@@ -1,5 +1,7 @@
 from collections import defaultdict, deque
 import inspect
+import numpy as np
+import pandas as pd
 
 class DependentStates:
 	_class_keywords = [
@@ -157,7 +159,7 @@ class DependentVariable:
 
 	def __setattr__(self, name, value):
 		if name == "value":
-			self.before.append(self._value)
+			self.before.append(self.value)
 			self._value = value
 			if len(self.before) > 10:
 				self.before = self.before[1:]
@@ -166,7 +168,16 @@ class DependentVariable:
 
 	def __getattr__(self, name):
 		if name == "value":
-			return self._value
+			if isinstance(self._value, list):
+				return [*self._value]
+			elif isinstance(self._value, dict):
+				return {**self._value}
+			elif isinstance(self._value, np.ndarray):
+				return self._value.copy()
+			elif isinstance(self._value, pd.DataFrame):
+				return self._value.copy()
+			else:
+				return self._value
 		else:
 			return super().__getattr__(name)
 
