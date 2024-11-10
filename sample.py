@@ -33,7 +33,7 @@ print("d:", states.d)  # -95
 print("e:", states.e)  # 5
 print("f:", states.f)  # 10
 
-print("Setting value------------------------------------------------------")
+print("Setting value-----------------------------------------------------")
 states.c = -5  # set origin value -> auto update
 print("Updated values after changing c to -5:")
 print("c:", states.c)  # -5
@@ -43,7 +43,7 @@ print("d:", states.d)  # 5
 print("e:", states.e)  # 5
 print("f:", states.f)  # d
 
-print("Setting update function------------------------------------------------")
+print("Setting update function-------------------------------------------")
 states.a = lambda s: s.c * 2
 print("Updated values after changing a:")
 print("c:", states.c)  # -5
@@ -57,12 +57,19 @@ print("Deleting values---------------------------------------------------")
 del states.c # False
 del states.f # True
 
-print("List index slice---------------------------------------------------")
+print("List index slice--------------------------------------------------")
 g = [i for i in range(1, 10)]
 states.g = g
 del g
 print(states.g[:5])
 
-print("To dict------------------------------------------------------------")
+print("To dict-----------------------------------------------------------")
 print(states.to_dict())
+
+print("Use independent---------------------------------------------------")
+states.independent['before_a'] = states.a
+states.c = 25
+print(states.to_dict())
+print('Before a: ', states.independent['before_a'])
+
 

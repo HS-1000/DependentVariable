@@ -7,7 +7,8 @@ import traceback
 class DependentStates:
 	_class_keywords = [
 		"_attrs", "dependencies", "unex_dependencies", 
-		"dependency_testing", "validation_node", "updated"
+		"dependency_testing", "validation_node", "updated",
+		"independent"
 	]
 
 	def __init__(self):
@@ -20,6 +21,7 @@ class DependentStates:
 		self.dependency_testing = False
 		self.validation_node = False
 		self.updated = []
+		self.independent = {}
 
 	def __getattr__(self, name):
 		if name in self._attrs:
