@@ -11,13 +11,12 @@ states.b = lambda s: s.c * 2  # b = 10
 states.a = lambda s: s.b * s.b  # a = 100
 states.d = lambda s: s.c - s.a  # d = -95
 states.e = lambda s: abs(s.c)  # e = 5
-
 def f_update(s):
     return s.b if s.c > 0 else s.d
-
 states.f = f_update  # f = 10
 
 print("Dependency graph:\n", states.dependencies)
+print("Update order:\n", states.update_order())
 
 # 값 업데이트 시도
 result = states.b = 123  # can't set value

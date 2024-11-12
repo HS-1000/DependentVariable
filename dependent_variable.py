@@ -76,17 +76,23 @@ class DependentStates:
 		del self._attrs[name]
 
 	def update_order(self):
-		# topological sort
+		# Topological sort를 위한 그래프 및 진입 차수 초기화
 		graph = defaultdict(list)
 		indegree = defaultdict(int)
+
+		# 의존성과 그래프 구성
 		for node, deps in self.dependencies.items():
 			for dep in deps:
 				graph[dep].append(node)
-				indegree[node] += 1
-			if node in indegree:
+				indegree[node] += 1  # 노드의 진입 차수 증가
+			if node not in indegree:  # 노드가 처음 등장할 때만 0으로 초기화
 				indegree[node] = 0
+
+		# 진입 차수가 0인 노드 큐 초기화
 		indegree_0 = deque([node for node in indegree if indegree[node] == 0])
 		order = []
+
+		# Topological sorting
 		while indegree_0:
 			current = indegree_0.popleft()
 			order.append(current)
@@ -94,12 +100,16 @@ class DependentStates:
 				indegree[child] -= 1
 				if indegree[child] == 0:
 					indegree_0.append(child)
-		# Circular dependency checking
+
+		# 순환 의존성 체크
 		if len(order) == len(indegree):
-			return order
+			result = []
+			for o in order:
+				if len(self.dependencies[o]):
+					result.append(o)
+			return result
 		else:
-			print("A circular dependency exists")
-			return False
+			raise ValueError('A circular dependency exists')
 
 	def set_dependencies(self, name, update_func, inplace=True, ):
 		self.dependency_testing = name
