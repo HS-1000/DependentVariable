@@ -8,7 +8,8 @@ class DependentStates:
 	_class_keywords = [
 		"_attrs", "dependencies", "unex_dependencies", 
 		"dependency_testing", "validation_node", "updated",
-		"independent"
+		"independent", "fix_update_order", "fixed_order",
+		"full_update"
 	]
 
 	def __init__(self):
@@ -20,6 +21,9 @@ class DependentStates:
 		}
 		self.dependency_testing = False
 		self.validation_node = False
+		self.fix_update_order = False # 세로운값 저장, 예상되지 않은 의존성 발견시 종료됨
+		self.fixed_order = []
+		self.full_update = False
 		self.updated = []
 		self.independent = {}
 
@@ -41,6 +45,8 @@ class DependentStates:
 	
 	def __setattr__(self, name, value):
 		if name in self._class_keywords:
+			if name == 'fix_update_order' and value:
+				self.fixed_order = self.update_order()
 			super().__setattr__(name, value)
 		else:
 			is_func = inspect.isfunction(value)
@@ -57,6 +63,9 @@ class DependentStates:
 					print("This value can only be set via 'update'")
 					return False
 			else:
+				if self.fix_update_order:
+					self.fix_update_order = False
+					print(f'Turn off fix_update_order, Name: {name}')				
 				self._attrs[name] = DependentVariable(None, is_origin=True)
 				self.dependencies[name] = set()
 				if is_func:
@@ -77,6 +86,8 @@ class DependentStates:
 
 	def update_order(self):
 		# Topological sort를 위한 그래프 및 진입 차수 초기화
+		if self.fix_update_order:
+			return self.fixed_order
 		graph = defaultdict(list)
 		indegree = defaultdict(int)
 
@@ -111,7 +122,7 @@ class DependentStates:
 		else:
 			raise ValueError('A circular dependency exists')
 
-	def set_dependencies(self, name, update_func, inplace=True, ):
+	def set_dependencies(self, name, update_func, inplace=True):
 		self.dependency_testing = name
 		r = update_func(self)
 		self.dependency_testing = False
@@ -134,21 +145,34 @@ class DependentStates:
 		return False
 
 	def graph_update(self):
+		# if self.fixed_order:
+		# 	order = self.fixed_order
+		# else:
+		# 	order = self.update_order()
 		order = self.update_order()
 		self.updated = []
 		self.reset_unex_dependencies()
+		independent_backup = self.independent
 		for o in order:
 			try:
-				if self.need_update(o):
+				if self.full_update:
+					is_need_update = True
+				else:
+					is_need_update = self.need_update(o)
+				if is_need_update:
 					self.validation_node = o
 					self._attrs[o].value = self._attrs[o].update(self)
 					self.updated.append(o)
 					if len(self.unex_dependencies["dependencies"]):
+						if self.fix_update_order:
+							self.fix_update_order = False
+							print(f'Turn off fix_update_order, Name: {self.unex_dependencies["name"]}')
 						# undo, reset dependencies
 						for u in self.unex_dependencies["dependencies"]:
 							self.dependencies[o].add(u)
 						for u in self.updated:
 							self._attrs[u].undo()
+						self.independent = independent_backup
 						self.graph_update()
 						break
 			except Exception as e:
