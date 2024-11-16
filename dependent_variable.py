@@ -66,7 +66,7 @@ class DependentStates:
 				if self.fix_update_order:
 					self.fix_update_order = False
 					print(f'Turn off fix_update_order, Name: {name}')				
-				self._attrs[name] = DependentVariable(None, is_origin=True)
+				self._attrs[name] = DependentVariable(None, is_origin=True, before_storage_len=3)
 				self.dependencies[name] = set()
 				if is_func:
 					self._attrs[name].update = value
@@ -196,10 +196,11 @@ class DependentStates:
 		return val_dict
 
 class DependentVariable:
-	def __init__(self, value, is_origin=False):
+	def __init__(self, value, is_origin=False, before_storage_len=3):
 		self.before = []
 		self.is_origin = is_origin
 		self._value = value
+		self.before_storage_len = before_storage_len
 
 	def update(self):
 		pass
@@ -208,7 +209,7 @@ class DependentVariable:
 		if name == "value":
 			self.before.append(self.value)
 			self._value = value
-			if len(self.before) > 10:
+			if len(self.before) > self.before_storage_len:
 				self.before = self.before[1:]
 		else:
 			super().__setattr__(name, value)
