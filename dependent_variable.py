@@ -219,12 +219,13 @@ class DependentStates:
 		if name in self._variables:
 			# 현재 다른 변수의 compute_func가 실행 중이라면, 의존성 관계를 기록
 			if self._current_computing_var:
-				target = self._current_computing_var
-				source = name
-				# print(f"DEBUG: {target} 의존성 추적: {source}") # 디버깅용
-				self._graph.add_dependency(target, source)
-				# add_dependency 내부에서 _mark_as_changed(target)를 호출하므로,
-				# 여기서 target의 is_change를 True로 설정할 필요는 없습니다.
+				if name != self._current_computing_var: # 자신을 계산에 사용하는 경우 제외
+					target = self._current_computing_var
+					source = name
+					# print(f"DEBUG: {target} 의존성 추적: {source}") # 디버깅용
+					self._graph.add_dependency(target, source)
+					# add_dependency 내부에서 _mark_as_changed(target)를 호출하므로,
+					# 여기서 target의 is_change를 True로 설정할 필요는 없습니다.
 			return self._variables[name].value
 		
 		# _variables에 없는 속성이면 기본 동작을 따름 (AttributeError 발생 또는 상위 클래스 탐색)
@@ -238,7 +239,7 @@ class DependentStates:
 		elif name in self._variables:
 			var_obj = self._variables[name]
 			if callable(value):
-				var_obj.value = None
+				# var_obj.value = None
 				var_obj.compute_func = value
 				self._compute_and_set_value(name)
 				# 기존에 있던 의존성은 _compute_and_set_value에서 초기화됨
@@ -324,6 +325,11 @@ class DependentStates:
 	def has_circular_dependency(self) -> bool:
 		"""현재 의존성 그래프에 순환 의존성이 있는지 여부를 확인합니다."""
 		return self._graph.has_circular_dependency()
+
+	def print_all_dependency(self) -> None:
+		names = self.get_all_var_names()
+		for name in names:
+			print(f"{name}: {self._graph.get_dependency(name)}")
 
 
 if __name__ == "__main__":
