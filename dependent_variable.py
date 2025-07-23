@@ -210,6 +210,7 @@ class DependentStates:
 		object.__setattr__(self, '_variables', {}) 
 		object.__setattr__(self, '_graph', DependencyGraph())
 		object.__setattr__(self, '_current_computing_var', None)
+		object.__setattr__(self, 'untracked', Variable())
 
 	def __getattr__(self, name: str) -> Any:
 		"""
@@ -249,6 +250,8 @@ class DependentStates:
 					self._graph.clean_dependency(name)
 					var_obj.compute_func = None
 				self._graph.set_changed(name)
+		elif name == 'untracked':
+			raise ValueError('untracked는 직접 정의되지 않습니다.')
 		else: # 새로운 속성
 			if callable(value):
 				self._variables[name] = Variable(value=None, compute_func=value)
