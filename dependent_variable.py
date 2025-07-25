@@ -206,11 +206,12 @@ class DependentStates:
 	변수들의 의존성을 추적하고 변경 시 자동 업데이트를 수행하는 클래스입니다.
 	속성 직접 접근(states.var_name)을 통해 변수 값에 접근 및 설정합니다.
 	"""
-	def __init__(self):
+	def __init__(self, always_update=False):
 		object.__setattr__(self, '_variables', {}) 
 		object.__setattr__(self, '_graph', DependencyGraph())
 		object.__setattr__(self, '_current_computing_var', None)
 		object.__setattr__(self, 'untracked', Variable())
+		object.__setattr__(self, '_always_update', always_update)
 
 	def __getattr__(self, name: str) -> Any:
 		"""
@@ -250,6 +251,8 @@ class DependentStates:
 					self._graph.clean_dependency(name)
 					var_obj.compute_func = None
 				self._graph.set_changed(name)
+			if self._always_update:
+				self.update_all()
 		elif name == 'untracked':
 			raise ValueError('untracked는 직접 정의되지 않습니다.')
 		else: # 새로운 속성
